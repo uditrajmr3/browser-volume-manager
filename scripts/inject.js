@@ -1,72 +1,58 @@
 /**
- * SiteVolume - Page Injected Audio Controller (MAIN world)
- * Injected at document_start into the page context.
- * Intercepts HTMLMediaElement (video/audio) and Web Audio API (AudioContext)
- * to allow smooth, zero-latency volume scaling and persistent site levels.
+ * SiteVolume - Page Context Audio Interceptor (MAIN world)
+ * Hooks HTMLMediaElement and Web Audio API (AudioContext)
  */
 
 (function () {
   'use strict';
 
-  // Prevent multiple injections
   if (window.__SITE_VOLUME_INJECTED__) return;
   window.__SITE_VOLUME_INJECTED__ = true;
 
-  // Current domain volume multiplier (1.0 = 100%, 0.5 = 50%, 0 = mute)
   let activeMultiplier = 1.0;
   let isMuted = false;
 
-  // Active tracked HTMLMediaElements
   const activeMediaElements = new Set();
-
-  // Web Audio Context master gains
   const contextGains = new WeakMap();
   const liveMasterGains = new Set();
 
-  // Save native methods before any page script can tamper with them
+  // 1. Capture Prototype references
   const origVolumeDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume');
   const origPlay = HTMLMediaElement.prototype.play;
   const origConnect = AudioNode.prototype.connect;
-  const origCreateGain = (window.AudioContext || window.webkitAudioContext)?.prototype.createGain;
 
-  /**
-   * Helper to compute effective volume factor
-   */
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const BaseAudioContextClass = window.BaseAudioContext || AudioContextClass;
+  const origCreateGain = BaseAudioContextClass?.prototype.createGain || AudioContextClass?.prototype.createGain;
+
   function getEffectiveMultiplier() {
     return isMuted ? 0 : Math.max(0, activeMultiplier);
   }
 
-  /**
-   * Update volume of an HTMLMediaElement
-   */
   function applyMediaElementVolume(element) {
     if (!origVolumeDesc || !origVolumeDesc.set) return;
     try {
-      const requested = element.__sv_requested_volume !== undefined 
-        ? element.__sv_requested_volume 
-        : origVolumeDesc.get.call(element);
-      
+      const requested = element.__sv_requested_volume !== undefined
+        ? element.__sv_requested_volume
+        : (origVolumeDesc.get ? origVolumeDesc.get.call(element) : 1.0);
+
+      element.__sv_requested_volume = requested;
       const effective = Math.min(1, Math.max(0, requested * getEffectiveMultiplier()));
       origVolumeDesc.set.call(element, effective);
-    } catch (e) {
-      // Element might be detached or in an invalid state
-    }
+    } catch (e) {}
   }
 
-  /**
-   * 1. Intercept HTMLMediaElement (Audio/Video elements)
-   */
+  // 2. Intercept HTMLMediaElement (video, audio, new Audio())
   if (origVolumeDesc && origVolumeDesc.set && origVolumeDesc.get) {
     Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
       get: function () {
-        return this.__sv_requested_volume !== undefined 
-          ? this.__sv_requested_volume 
+        return this.__sv_requested_volume !== undefined
+          ? this.__sv_requested_volume
           : origVolumeDesc.get.call(this);
       },
       set: function (value) {
         const num = Number(value);
         if (isNaN(num) || num < 0 || num > 1) {
-          // Trigger browser's native error
           return origVolumeDesc.set.call(this, value);
         }
         this.__sv_requested_volume = num;
@@ -79,6 +65,9 @@
 
     HTMLMediaElement.prototype.play = function (...args) {
       activeMediaElements.add(this);
+      if (this.__sv_requested_volume === undefined) {
+        this.__sv_requested_volume = origVolumeDesc.get ? origVolumeDesc.get.call(this) : 1.0;
+      }
       applyMediaElementVolume(this);
 
       const cleanup = () => {
@@ -94,24 +83,22 @@
     };
   }
 
-  /**
-   * 2. Intercept Web Audio API (Used by Chess.com, HTML5 games, synth, WebAudio)
-   */
+  // 3. Intercept Web Audio API (AudioContext)
   function getOrCreateMasterGain(ctx) {
     let gainNode = contextGains.get(ctx);
-    if (!gainNode && origCreateGain) {
+    if (!gainNode && origCreateGain && origConnect) {
       try {
         gainNode = origCreateGain.call(ctx);
         const mult = getEffectiveMultiplier();
         gainNode.gain.setValueAtTime(mult, ctx.currentTime);
 
-        // Connect our master gain directly to real hardware destination
+        // Route master gain into real destination
         origConnect.call(gainNode, ctx.destination);
 
         contextGains.set(ctx, gainNode);
         liveMasterGains.add(gainNode);
       } catch (e) {
-        console.warn('[SiteVolume] Failed to attach master gain to context:', e);
+        console.warn('[SiteVolume] Master gain init error:', e);
       }
     }
     return gainNode;
@@ -120,37 +107,35 @@
   if (origConnect && origCreateGain) {
     AudioNode.prototype.connect = function (destinationNode, ...args) {
       try {
-        // If connecting to the context destination (speakers/output)
         if (destinationNode && this.context && destinationNode === this.context.destination) {
           const masterGain = getOrCreateMasterGain(this.context);
           if (masterGain) {
             return origConnect.call(this, masterGain, ...args);
           }
         }
-      } catch (e) {
-        // Fallback to native connect on any unexpected issue
-      }
+      } catch (e) {}
       return origConnect.call(this, destinationNode, ...args);
     };
   }
 
-  /**
-   * Apply multiplier updates to all active media & audio contexts
-   */
+  // 4. Update all playing and in-memory audio
   function refreshAllAudio() {
     const mult = getEffectiveMultiplier();
 
-    // 1. Update HTMLMediaElements
+    // Update active media elements
     for (const el of activeMediaElements) {
       applyMediaElementVolume(el);
     }
-    // Also scan all audio/video currently in document
-    const domMedia = document.querySelectorAll('video, audio');
-    domMedia.forEach((el) => {
-      applyMediaElementVolume(el);
-    });
 
-    // 2. Update Web Audio master gain nodes
+    // Update all audio/video tags in the DOM
+    try {
+      const mediaInDOM = document.querySelectorAll('video, audio');
+      mediaInDOM.forEach((el) => {
+        applyMediaElementVolume(el);
+      });
+    } catch (e) {}
+
+    // Update all Web Audio GainNodes
     for (const gainNode of liveMasterGains) {
       try {
         if (gainNode.context.state === 'closed') {
@@ -165,13 +150,11 @@
     }
   }
 
-  /**
-   * Listen for messages from content-bridge.js (ISOLATED world)
-   */
-  window.addEventListener('__SITE_VOLUME_APPLY__', function (event) {
-    if (!event.detail) return;
-    const { volume, muted } = event.detail;
+  // 5. Reliable cross-world communication using window.postMessage
+  window.addEventListener('message', function (event) {
+    if (event.source !== window || !event.data || event.data.source !== 'SITE_VOLUME_BRIDGE') return;
 
+    const { volume, muted } = event.data;
     if (typeof volume === 'number') {
       activeMultiplier = volume;
     }
@@ -182,7 +165,6 @@
     refreshAllAudio();
   });
 
-  // Signal bridge that inject script is ready to receive initial volume
-  window.dispatchEvent(new CustomEvent('__SITE_VOLUME_READY__'));
+  // Signal bridge that script is mounted
+  window.postMessage({ source: 'SITE_VOLUME_INJECT', type: 'READY' }, '*');
 })();
-

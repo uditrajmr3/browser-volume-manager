@@ -1,13 +1,11 @@
 /**
  * SiteVolume - Content Script Bridge (ISOLATED world)
- * Bridges communication between chrome.storage/extension messages
- * and the MAIN world injected audio controller script.
+ * Bridges chrome.storage/extension messages with inject.js in MAIN world
  */
 
 (function () {
   'use strict';
 
-  // Normalize hostname (e.g. www.chess.com -> chess.com)
   function getDomainKey(hostname) {
     if (!hostname) return 'default';
     return hostname.replace(/^www\./i, '').toLowerCase();
@@ -22,21 +20,19 @@
   };
 
   /**
-   * Send settings to the injected script in the MAIN world
+   * Post settings to inject.js in the MAIN world via window.postMessage
    */
   function dispatchToPage(settings) {
-    window.dispatchEvent(
-      new CustomEvent('__SITE_VOLUME_APPLY__', {
-        detail: {
-          volume: settings.volume,
-          muted: settings.muted
-        }
-      })
-    );
+    window.postMessage({
+      source: 'SITE_VOLUME_BRIDGE',
+      type: 'APPLY_SETTINGS',
+      volume: settings.volume,
+      muted: settings.muted
+    }, '*');
   }
 
   /**
-   * Load stored settings for the current site
+   * Load saved settings from chrome.storage
    */
   function loadAndApplySettings() {
     if (!chrome.storage || !chrome.storage.local) return;
@@ -66,20 +62,22 @@
   // Load right away
   loadAndApplySettings();
 
-  // If inject.js signals it just mounted, re-dispatch
-  window.addEventListener('__SITE_VOLUME_READY__', () => {
-    dispatchToPage(currentSettings);
+  // Listen for inject.js ready message
+  window.addEventListener('message', (event) => {
+    if (event.source === window && event.data && event.data.source === 'SITE_VOLUME_INJECT') {
+      if (event.data.type === 'READY') {
+        dispatchToPage(currentSettings);
+      }
+    }
   });
 
-  // Listen for real-time messages from popup or background
+  // Listen for direct messages from popup or background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'SITE_VOLUME_UPDATE') {
-      if (message.domain === domainKey || message.domain === currentHost) {
-        currentSettings.volume = message.volume;
-        currentSettings.muted = message.muted;
-        dispatchToPage(currentSettings);
-        sendResponse({ success: true });
-      }
+      currentSettings.volume = message.volume;
+      currentSettings.muted = message.muted;
+      dispatchToPage(currentSettings);
+      sendResponse({ success: true });
     } else if (message.type === 'SITE_VOLUME_GET_CURRENT') {
       sendResponse({
         domain: domainKey,
@@ -89,4 +87,3 @@
     return true;
   });
 })();
-

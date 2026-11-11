@@ -3,7 +3,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
   const mainView = document.getElementById('mainView');
   const restrictedView = document.getElementById('restrictedView');
   const siteDomainEl = document.getElementById('siteDomain');
@@ -28,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let previousVolume = 1.0;
   let hasCustomSetting = false;
 
-  // Extract domain
   function getDomainKey(url) {
     try {
       const parsed = new URL(url);
@@ -41,14 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Update slider fill track
   function updateSliderBackground(val, max) {
     const percent = Math.min(100, Math.max(0, (val / max) * 100));
     const activeColor = val > 100 ? '#f59e0b' : '#3b82f6';
     volumeSliderEl.style.background = `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${percent}%, #33394a ${percent}%, #33394a 100%)`;
   }
 
-  // Update UI elements
   function renderUI() {
     const displayVal = Math.round(currentVolume * 100);
     const maxVal = parseInt(volumeSliderEl.max, 10);
@@ -86,7 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // Update preset buttons active highlight
     presetButtons.forEach((btn) => {
       const v = parseInt(btn.dataset.volume, 10);
       if (!isMuted && v === displayVal) {
@@ -97,7 +92,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Apply volume and broadcast
+  // Ensure content scripts are active in tab even if opened before extension was loaded
+  async function ensureScriptsInjected(tabId) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        files: ['scripts/inject.js'],
+        world: 'MAIN'
+      });
+      await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        files: ['scripts/content-bridge.js']
+      });
+    } catch (e) {}
+  }
+
   function applyVolume(volume, muted) {
     currentVolume = volume;
     isMuted = muted;
@@ -106,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       previousVolume = volume;
     }
 
-    // Save if remember is enabled
+    // Save to storage
     if (chkRemember.checked && currentDomain) {
       chrome.storage.local.get(['siteVolumes'], (data) => {
         const siteVolumes = data.siteVolumes || {};
@@ -120,7 +129,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Broadcast change to active tab and all matching domain tabs
+    // Direct message to active tab
+    if (activeTab && activeTab.id) {
+      chrome.tabs.sendMessage(activeTab.id, {
+        type: 'SITE_VOLUME_UPDATE',
+        domain: currentDomain,
+        volume: currentVolume,
+        muted: isMuted
+      }).catch(async () => {
+        // Content script wasn't ready yet, inject and retry
+        await ensureScriptsInjected(activeTab.id);
+        chrome.tabs.sendMessage(activeTab.id, {
+          type: 'SITE_VOLUME_UPDATE',
+          domain: currentDomain,
+          volume: currentVolume,
+          muted: isMuted
+        }).catch(() => {});
+      });
+    }
+
+    // Broadcast change to other open tabs of the same domain
     chrome.runtime.sendMessage({
       type: 'BROADCAST_SITE_VOLUME',
       domain: currentDomain,
@@ -131,7 +159,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderUI();
   }
 
-  // Get active tab and initialize
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     activeTab = tabs[0];
@@ -150,7 +177,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     siteDomainEl.textContent = currentDomain;
 
-    // Load Favicon if available
     if (activeTab.favIconUrl && !activeTab.favIconUrl.startsWith('chrome://')) {
       siteFaviconEl.src = activeTab.favIconUrl;
       siteFaviconEl.style.display = 'block';
@@ -176,7 +202,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         hasCustomSetting = false;
       }
 
-      // Check if current volume exceeds 100% to auto-check boost
       if (currentVolume > 1.0) {
         chkBoost.checked = true;
         volumeSliderEl.max = '200';
@@ -193,13 +218,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     restrictedView.style.display = 'flex';
   }
 
-  // Event: Slider Dragging
   volumeSliderEl.addEventListener('input', (e) => {
     const val = parseInt(e.target.value, 10);
     applyVolume(val / 100, false);
   });
 
-  // Event: Preset Buttons
   presetButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const val = parseInt(btn.dataset.volume, 10);
@@ -207,18 +230,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Event: Mute Button
   btnMute.addEventListener('click', () => {
     if (isMuted) {
-      // Unmute: restore previous volume
       applyVolume(previousVolume > 0 ? previousVolume : 1.0, false);
     } else {
-      // Mute
       applyVolume(currentVolume, true);
     }
   });
 
-  // Event: Boost Toggle
   chkBoost.addEventListener('change', (e) => {
     if (e.target.checked) {
       volumeSliderEl.max = '200';
@@ -231,7 +250,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderUI();
   });
 
-  // Event: Reset Site
   btnReset.addEventListener('click', () => {
     if (!currentDomain) return;
 
@@ -246,7 +264,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Event: Open Options
   btnOptions.addEventListener('click', () => {
     if (chrome.runtime.openOptionsPage) {
       chrome.runtime.openOptionsPage();
@@ -255,7 +272,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Keyboard shortcut support in popup (Left/Right to step volume, M to mute)
   window.addEventListener('keydown', (e) => {
     if (e.key === 'm' || e.key === 'M') {
       btnMute.click();
@@ -271,4 +287,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
-

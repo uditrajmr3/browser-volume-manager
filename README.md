@@ -23,3 +23,4 @@ SiteVolume addresses this by saving a custom volume scale per website domain and
 3. Turn on the **Developer mode** toggle.
 4. Click **Load unpacked** and choose this project directory.
 5. Pin the extension to your toolbar for fast access.
+
