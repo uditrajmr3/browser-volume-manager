@@ -1,26 +1,45 @@
 # SiteVolume
 
-SiteVolume is a lightweight browser extension that remembers volume settings for individual websites.
+A lightweight browser extension that lets you control and permanently remember volume levels for individual websites.
 
 ## Overview
 
-Many websites (like online board games, web tools, and social feeds) do not include dedicated audio controls. If your computer system volume is kept high for streaming media, unexpected sound effects can be uncomfortably loud.
+Many websites (like board game platforms, web games, browser tools, and social feeds) lack dedicated audio volume sliders. If your computer system volume is kept high for media playback on YouTube or Netflix, unexpected sound effects can be deafening.
 
-SiteVolume addresses this by saving a custom volume scale per website domain and applying it automatically whenever you visit.
+**SiteVolume** solves this by routing tab audio through Chrome's tab capture engine and Web Audio API, automatically applying and remembering your preferred volume for that specific domain forever.
 
-## Highlights
+## Features
 
-- **Per-Domain Persistence**: Automatically stores your target audio level for each website.
-- **Direct Audio Hooking**: Works with standard HTML5 media and Web Audio API graphs without stream capture delay or tab-sharing notification banners.
-- **Real-Time Popup**: Clean popup slider with preset buttons and quick mute.
-- **Site Manager**: Options page allowing you to review, adjust, or remove stored overrides.
-- **Privacy Minded**: Runs entirely on your machine; no external network requests or analytics.
+- **Persistent Domain Memory**: Set a volume once (e.g., `chess.com` at 25%), and it is remembered across browser restarts and new tabs.
+- **Hardware-Level Tab Capture**: Controls 100% of audio output — including WebAssembly game engines, HTML5 media, Web Audio graphs, and sound effects.
+- **Quick Popup Controls**:
+  - Smooth 0% to 100% volume slider (with optional Boost mode up to 200%).
+  - Quick preset buttons: Mute, 25%, 50%, 75%, 100%.
+  - Live icon badge showing current site volume level.
+- **Site Manager (Options Page)**:
+  - Search and filter all saved website rules.
+  - Adjust or delete individual domain overrides.
+  - Set a global default volume for unconfigured sites.
+  - Export and import configuration backups (JSON).
+- **Privacy First**: Runs entirely locally in your browser with zero analytics or external requests.
 
-## Installation
+## Installation (Developer Mode / Unpacked)
 
-1. Clone or download this project folder.
-2. Open your browser's extension settings (e.g., `chrome://extensions` or `edge://extensions`).
-3. Turn on the **Developer mode** toggle.
-4. Click **Load unpacked** and choose this project directory.
-5. Pin the extension to your toolbar for fast access.
+1. Clone or download this repository:
+   ```bash
+   git clone https://github.com/<your-username>/browser-volume-manager.git
+   ```
+2. Open your browser and navigate to the extensions page:
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+   - Brave: `brave://extensions`
+3. Enable **Developer mode** (top-right corner).
+4. Click **Load unpacked** and select the repository directory.
+5. Pin **SiteVolume** to your browser toolbar for fast access.
 
+## Architecture
+
+- **Manifest V3**: Fully compliant with the latest Chrome extension standards.
+- **Service Worker (`scripts/background.js`)**: Coordinates tab capture stream IDs, badge text, and cross-tab settings sync.
+- **Offscreen Document (`offscreen/`)**: Houses the `AudioContext` and `GainNode` audio routing graph to regulate audio streams without UI latency.
+- **Chrome Storage API**: Persists domain settings locally.
