@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "SiteVolume - Persistent Website Volume Manager",
   "short_name": "SiteVolume",
-  "version": "1.0.0",
-  "description": "Control and permanently remember volume levels per website. Works with HTML5 media and Web Audio games like Chess.com.",
+  "version": "1.1.0",
+  "description": "Control and permanently remember volume levels per website. Works universally with tab audio capture.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -14,7 +14,9 @@
     "storage",
     "tabs",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabCapture",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -53,4 +55,3 @@
     }
   ]
 }
-

@@ -127,11 +127,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function saveAndBroadcast(domain, volume, muted) {
     chrome.storage.local.set({ siteVolumes });
-    chrome.runtime.sendMessage({
-      type: 'BROADCAST_SITE_VOLUME',
-      domain,
-      volume,
-      muted
+    chrome.tabs.query({}, (tabs) => {
+      for (const t of tabs) {
+        if (!t.url) continue;
+        try {
+          const u = new URL(t.url);
+          const d = u.hostname.replace(/^www\./i, '').toLowerCase();
+          if (d === domain) {
+            chrome.runtime.sendMessage({
+              type: 'SET_TAB_VOLUME',
+              tabId: t.id,
+              domain,
+              volume,
+              muted
+            });
+          }
+        } catch (e) {}
+      }
     });
   }
 

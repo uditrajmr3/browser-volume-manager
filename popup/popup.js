@@ -92,22 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Ensure content scripts are active in tab even if opened before extension was loaded
-  async function ensureScriptsInjected(tabId) {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId, allFrames: true },
-        files: ['scripts/inject.js'],
-        world: 'MAIN'
-      });
-      await chrome.scripting.executeScript({
-        target: { tabId, allFrames: true },
-        files: ['scripts/content-bridge.js']
-      });
-    } catch (e) {}
-  }
-
-  function applyVolume(volume, muted) {
+  function applyVolume(volume, muted, autoSave = true) {
     currentVolume = volume;
     isMuted = muted;
 
@@ -115,46 +100,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       previousVolume = volume;
     }
 
-    // Save to storage
-    if (chkRemember.checked && currentDomain) {
-      chrome.storage.local.get(['siteVolumes'], (data) => {
-        const siteVolumes = data.siteVolumes || {};
-        siteVolumes[currentDomain] = {
-          volume: currentVolume,
-          muted: isMuted,
-          updatedAt: Date.now()
-        };
-        chrome.storage.local.set({ siteVolumes });
-        hasCustomSetting = true;
-      });
+    if (autoSave && chkRemember.checked && currentDomain) {
+      hasCustomSetting = true;
     }
 
-    // Direct message to active tab
-    if (activeTab && activeTab.id) {
-      chrome.tabs.sendMessage(activeTab.id, {
-        type: 'SITE_VOLUME_UPDATE',
+    // Send to background service worker to capture tab and scale volume
+    if (activeTab && activeTab.id && currentDomain) {
+      chrome.runtime.sendMessage({
+        type: 'SET_TAB_VOLUME',
+        tabId: activeTab.id,
         domain: currentDomain,
         volume: currentVolume,
         muted: isMuted
-      }).catch(async () => {
-        // Content script wasn't ready yet, inject and retry
-        await ensureScriptsInjected(activeTab.id);
-        chrome.tabs.sendMessage(activeTab.id, {
-          type: 'SITE_VOLUME_UPDATE',
-          domain: currentDomain,
-          volume: currentVolume,
-          muted: isMuted
-        }).catch(() => {});
       });
     }
-
-    // Broadcast change to other open tabs of the same domain
-    chrome.runtime.sendMessage({
-      type: 'BROADCAST_SITE_VOLUME',
-      domain: currentDomain,
-      volume: currentVolume,
-      muted: isMuted
-    });
 
     renderUI();
   }
@@ -196,6 +155,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentVolume = typeof saved.volume === 'number' ? saved.volume : 1.0;
         isMuted = Boolean(saved.muted);
         hasCustomSetting = true;
+        // Automatically activate capture with saved preference on popup open
+        applyVolume(currentVolume, isMuted, false);
       } else {
         currentVolume = typeof data.globalDefault === 'number' ? data.globalDefault : 1.0;
         isMuted = false;
@@ -260,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const def = typeof data.globalDefault === 'number' ? data.globalDefault : 1.0;
       hasCustomSetting = false;
-      applyVolume(def, false);
+      applyVolume(def, false, false);
     });
   });
 
