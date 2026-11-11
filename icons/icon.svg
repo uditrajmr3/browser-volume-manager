@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bgGrad)" filter="url(#shadow)" />
+
+  <!-- Speaker body -->
+  <path d="M52 38 L34 52 L22 52 A2 2 0 0 0 20 54 L20 74 A2 2 0 0 0 22 76 L34 76 L52 90 A2 2 0 0 0 56 88.5 L56 39.5 A2 2 0 0 0 52 38 Z" fill="#ffffff" />
+
+  <!-- Sound Waves -->
+  <!-- Inner Wave -->
+  <path d="M68 53 C74 59 74 69 68 75" fill="none" stroke="url(#waveGrad)" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Outer Wave -->
+  <path d="M79 43 C91 53 91 75 79 85" fill="none" stroke="url(#waveGrad)" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Boost Indicator Dot -->
+  <circle cx="98" cy="64" r="5" fill="#38bdf8" />
+</svg>
+

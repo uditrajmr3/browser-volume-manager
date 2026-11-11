@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SiteVolume - Settings & Site Manager</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="layout">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <h1>SiteVolume Manager</h1>
+      </div>
+      <p class="tagline">Manage persistent volume settings and audio preferences across all websites.</p>
+    </header>
+
+    <!-- Global Settings Card -->
+    <section class="card">
+      <h2 class="card-title">Global Audio Settings</h2>
+      <div class="setting-item">
+        <div class="setting-desc">
+          <span class="setting-name">Global Default Volume</span>
+          <span class="setting-hint">Default volume level for websites that don't have a custom override.</span>
+        </div>
+        <div class="setting-ctrl">
+          <input type="range" id="globalDefaultSlider" min="0" max="100" value="100">
+          <span id="globalDefaultLabel" class="val-pill">100%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sites Manager Card -->
+    <section class="card">
+      <div class="card-header-row">
+        <div>
+          <h2 class="card-title">Saved Website Overrides</h2>
+          <span id="siteCount" class="sub-counter">0 websites saved</span>
+        </div>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchSites" placeholder="Filter websites (e.g. chess.com)...">
+        </div>
+      </div>
+
+      <!-- Site List -->
+      <div id="siteList" class="site-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon">🎧</div>
+        <h3>No Custom Sites Yet</h3>
+        <p>Visit any site (like <strong>chess.com</strong>) and adjust the volume slider from the extension popup. It will automatically appear here!</p>
+      </div>
+    </section>
+
+    <!-- Backup & Data Section -->
+    <section class="card">
+      <h2 class="card-title">Backup & Maintenance</h2>
+      <div class="action-grid">
+        <button id="btnExport" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export Backup (JSON)
+        </button>
+
+        <label class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Import Backup
+          <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        </label>
+
+        <button id="btnClearAll" class="btn btn-danger">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          Clear All Overrides
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
+
