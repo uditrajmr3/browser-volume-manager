@@ -40,15 +40,23 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["scripts/inject.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "scripts/inject.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["scripts/content-bridge.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "scripts/content-bridge.js"
+      ],
       "run_at": "document_start",
       "world": "ISOLATED",
       "all_frames": true

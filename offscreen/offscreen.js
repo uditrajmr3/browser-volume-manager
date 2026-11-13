@@ -109,3 +109,4 @@ function stopTabCapture(tabId) {
     console.log(`[SiteVolume Offscreen] Stopped capture for tab ${tabId}`);
   }
 }
+
